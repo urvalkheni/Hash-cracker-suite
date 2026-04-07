@@ -1,0 +1,157 @@
+"""
+Hash Utility Module
+
+Provides hash generation and verification functions.
+Supports MD5, SHA-1, SHA-256 algorithms.
+
+Educational purpose: Understanding hash functions and verification.
+"""
+
+import hashlib
+from typing import Literal
+
+
+# Supported hash algorithms
+SUPPORTED_ALGORITHMS = {
+    "md5": hashlib.md5,
+    "sha1": hashlib.sha1,
+    "sha256": hashlib.sha256,
+}
+
+
+class UnsupportedAlgorithmError(Exception):
+    """Raised when an unsupported hash algorithm is requested."""
+
+    pass
+
+
+def generate_hash(
+    text: str, algorithm: Literal["md5", "sha1", "sha256"] = "sha256"
+) -> str:
+    """
+    Generate a hash for the given text using the specified algorithm.
+
+    Args:
+        text: The text to hash
+        algorithm: Hash algorithm to use (md5, sha1, sha256)
+                  Default: sha256
+
+    Returns:
+        Hexadecimal hash string
+
+    Raises:
+        UnsupportedAlgorithmError: If algorithm is not supported
+        TypeError: If text is not a string
+
+    Examples:
+        >>> generate_hash("password")
+        '5e884898da28047151d0e56f8dc62927...'
+        
+        >>> generate_hash("password", "md5")
+        '5f4dcc3b5aa765d61d8327deb882cf99'
+    """
+    # Validate algorithm
+    algorithm = algorithm.lower()
+    if algorithm not in SUPPORTED_ALGORITHMS:
+        raise UnsupportedAlgorithmError(
+            f"Unsupported algorithm: {algorithm}. "
+            f"Supported algorithms: {', '.join(SUPPORTED_ALGORITHMS.keys())}"
+        )
+
+    # Validate text input
+    if not isinstance(text, str):
+        raise TypeError(f"Expected string, got {type(text).__name__}")
+
+    # Generate hash
+    hash_obj = SUPPORTED_ALGORITHMS[algorithm](text.encode("utf-8"))
+    return hash_obj.hexdigest()
+
+
+def verify_hash(
+    text: str, target_hash: str, algorithm: Literal["md5", "sha1", "sha256"] = "sha256"
+) -> bool:
+    """
+    Verify if the given text matches the target hash.
+
+    Args:
+        text: The text to verify
+        target_hash: The hash to compare against (hexadecimal string)
+        algorithm: Hash algorithm to use (md5, sha1, sha256)
+                  Default: sha256
+
+    Returns:
+        True if text hashes to target_hash, False otherwise
+
+    Raises:
+        UnsupportedAlgorithmError: If algorithm is not supported
+        TypeError: If inputs are not strings
+
+    Examples:
+        >>> verify_hash("password", "5f4dcc3b5aa765d61d8327deb882cf99", "md5")
+        True
+        
+        >>> verify_hash("wrong", "5f4dcc3b5aa765d61d8327deb882cf99", "md5")
+        False
+    """
+    # Validate inputs
+    if not isinstance(text, str):
+        raise TypeError(f"text must be string, got {type(text).__name__}")
+
+    if not isinstance(target_hash, str):
+        raise TypeError(f"target_hash must be string, got {type(target_hash).__name__}")
+
+    # Validate algorithm
+    algorithm = algorithm.lower()
+    if algorithm not in SUPPORTED_ALGORITHMS:
+        raise UnsupportedAlgorithmError(
+            f"Unsupported algorithm: {algorithm}. "
+            f"Supported algorithms: {', '.join(SUPPORTED_ALGORITHMS.keys())}"
+        )
+
+    # Generate hash and compare
+    generated_hash = generate_hash(text, algorithm)
+    return generated_hash.lower() == target_hash.lower()
+
+
+def get_algorithm_info(algorithm: str = None) -> dict:
+    """
+    Get information about supported hash algorithms.
+
+    Args:
+        algorithm: Specific algorithm to get info for, or None for all
+
+    Returns:
+        Dictionary with algorithm information
+
+    Examples:
+        >>> get_algorithm_info("md5")
+        {'md5': {'name': 'MD5', 'digest_size': 16, ...}}
+    """
+    if algorithm is None:
+        # Return info for all algorithms
+        info = {}
+        for algo in SUPPORTED_ALGORITHMS.keys():
+            hash_obj = SUPPORTED_ALGORITHMS[algo]()
+            info[algo] = {
+                "name": algo.upper(),
+                "digest_size": hash_obj.digest_size,
+                "block_size": hash_obj.block_size if hasattr(hash_obj, "block_size") else "N/A",
+            }
+        return info
+    else:
+        # Return info for specific algorithm
+        algorithm = algorithm.lower()
+        if algorithm not in SUPPORTED_ALGORITHMS:
+            raise UnsupportedAlgorithmError(
+                f"Unsupported algorithm: {algorithm}. "
+                f"Supported algorithms: {', '.join(SUPPORTED_ALGORITHMS.keys())}"
+            )
+
+        hash_obj = SUPPORTED_ALGORITHMS[algorithm]()
+        return {
+            algorithm: {
+                "name": algorithm.upper(),
+                "digest_size": hash_obj.digest_size,
+                "block_size": hash_obj.block_size if hasattr(hash_obj, "block_size") else "N/A",
+            }
+        }

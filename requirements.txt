@@ -1,0 +1,5 @@
+# Hash Cracker Suite Requirements
+# Core dependencies for Python 3.8+
+
+# No external dependencies required for Phase 1
+# Standard library only: hashlib, itertools, argparse, json, pathlib
