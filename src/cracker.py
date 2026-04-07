@@ -1,301 +1,168 @@
 #!/usr/bin/env python3
 """
 Hash Cracker Suite - Main CLI Interface
-
-Usage:
-    python cracker.py --help
 """
 
 import argparse
 import sys
 from pathlib import Path
 
-# Import hash utilities
-from core.hash_utils import (
-    generate_hash,
-    verify_hash,
-    get_algorithm_info,
-    UnsupportedAlgorithmError,
-)
-
-# Import attack modules
-from core.dictionary_attack import (
-    run_dictionary_attack,
-    validate_wordlist,
-    DictionaryAttackError,
-)
-from core.brute_force import run_brute_force, BruteForceError
+from src.cli.hash_mode import handle_hash_mode
+from src.cli.dict_mode import handle_dict_mode
+from src.cli.brute_mode import handle_brute_mode
+from src.cli.check_mode import handle_check_mode
 
 
-def create_parser():
+def create_parser() -> argparse.ArgumentParser:
     """Create and return the CLI argument parser."""
     parser = argparse.ArgumentParser(
-        description="Hash Cracker Suite - Crack hashes using multiple techniques",
+        description="Hash Cracker Suite - Hashing, cracking, and password analysis",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-    Generate Hash:
-        python cracker.py --mode hash --text password --algorithm md5
+  Hash generate:
+        python -m src.cracker hash --text password --algorithm md5
 
-    Verify Hash:
-        python cracker.py --mode hash --text password --hash 5f4dcc3b5aa765d61d8327deb882cf99 --algorithm md5
+  Hash verify:
+        python -m src.cracker hash --text password --hash 5f4dcc3b5aa765d61d8327deb882cf99 --algorithm md5
 
-    Dictionary Attack (Phase 3):
-        python cracker.py --mode dict --hash <hash> --wordlist data/wordlists/sample.txt
+  Dictionary attack:
+        python -m src.cracker dict --hash 5f4dcc3b5aa765d61d8327deb882cf99 --wordlist data/wordlists/common.txt --algorithm md5 --i-understand-legal-use
 
-    Brute Force (Phase 4):
-        python cracker.py --mode brute --hash <hash> --algorithm md5 --max-length 3
+  Brute-force attack:
+        python -m src.cracker brute --hash 900150983cd24fb0d6963f7d28e17f72 --algorithm md5 --max-length 3 --i-understand-legal-use --force
 
-    Rainbow Table (Not Implemented Yet):
-        python cracker.py --mode rainbow --hash <hash>
-                """,
-        )
-
-    parser.add_argument(
-        "--mode",
-        choices=["hash", "dict", "brute", "rainbow"],
-        required=True,
-        help="Operation mode: hash (generate/verify), dict, brute, rainbow",
+  Password check:
+        python -m src.cracker check --text password123
+        """,
     )
 
-    parser.add_argument(
-        "--hash",
-        help="Target hash to crack or verify against",
-    )
+    subparsers = parser.add_subparsers(dest="mode", required=True)
 
-    parser.add_argument(
-        "--text",
-        help="Text to hash or verify",
-    )
-
-    parser.add_argument(
+    hash_parser = subparsers.add_parser("hash", help="Generate or verify hashes")
+    hash_parser.add_argument("--text", required=True, help="Input text")
+    hash_parser.add_argument("--hash", help="Target hash for verification")
+    hash_parser.add_argument(
         "--algorithm",
         choices=["md5", "sha1", "sha256"],
         default="sha256",
         help="Hash algorithm (default: sha256)",
     )
 
-    parser.add_argument(
+    dict_parser = subparsers.add_parser("dict", help="Run dictionary attack")
+    dict_parser.add_argument("--hash", required=True, help="Target hash")
+    dict_parser.add_argument(
         "--wordlist",
         type=Path,
-        help="Path to wordlist file (for dictionary attack)",
+        required=True,
+        help="Path to wordlist file",
+    )
+    dict_parser.add_argument(
+        "--algorithm",
+        choices=["md5", "sha1", "sha256"],
+        default="sha256",
+        help="Hash algorithm (default: sha256)",
+    )
+    dict_parser.add_argument(
+        "--verbose",
+        action="store_true",
+        help="Enable progress output",
+    )
+    dict_parser.add_argument(
+        "--progress-interval",
+        type=int,
+        default=1000,
+        help="Show progress every N attempts (default: 1000)",
+    )
+    dict_parser.add_argument(
+        "--i-understand-legal-use",
+        action="store_true",
+        help="Acknowledge authorized use requirement",
     )
 
-    parser.add_argument(
+    brute_parser = subparsers.add_parser("brute", help="Run brute-force attack")
+    brute_parser.add_argument("--hash", required=True, help="Target hash")
+    brute_parser.add_argument(
+        "--algorithm",
+        choices=["md5", "sha1", "sha256"],
+        default="sha256",
+        help="Hash algorithm (default: sha256)",
+    )
+    brute_parser.add_argument(
         "--max-length",
         dest="max_length",
         type=int,
         default=4,
-        help="Maximum password length for brute-force (default: 4)",
+        help="Maximum password length (default: 4)",
     )
-
-    parser.add_argument(
+    brute_parser.add_argument(
         "--charset",
         default="abcdefghijklmnopqrstuvwxyz",
-        help="Character set for brute-force (default: lowercase a-z)",
+        help="Character set (default: lowercase a-z)",
     )
+    brute_parser.add_argument(
+        "--verbose",
+        action="store_true",
+        help="Enable progress output",
+    )
+    brute_parser.add_argument(
+        "--progress-interval",
+        type=int,
+        default=1000,
+        help="Show progress every N attempts (default: 1000)",
+    )
+    brute_parser.add_argument(
+        "--i-understand-legal-use",
+        action="store_true",
+        help="Acknowledge authorized use requirement",
+    )
+    brute_parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Force execution for large brute-force search spaces",
+    )
+
+    check_parser = subparsers.add_parser("check", help="Analyze password strength")
+    check_parser.add_argument("--text", required=True, help="Password text")
 
     return parser
 
 
-def handle_hash_mode(args):
-    """Handle hash generation and verification."""
-    print("\n" + "=" * 60)
-    print("Hash Cracker Suite - Hash Utility (Phase 2)")
-    print("=" * 60 + "\n")
-
-    # Validate required arguments
-    if not args.text:
-        print("[!] Error: --text is required for hash mode")
-        print("[*] Usage: python cracker.py --mode hash --text <text> --algorithm <algo>")
-        return False
-
-    try:
-        # Generate hash
-        generated_hash = generate_hash(args.text, args.algorithm)
-
-        print(f"[+] Text: {args.text}")
-        print(f"[+] Algorithm: {args.algorithm.upper()}")
-        print(f"[+] Generated Hash: {generated_hash}\n")
-
-        # If target hash provided, verify
-        if args.hash:
-            is_match = verify_hash(args.text, args.hash, args.algorithm)
-
-            print(f"[*] Verification:")
-            print(f"[*] Target Hash: {args.hash}")
-            print(f"[*] Generated Hash: {generated_hash}")
-
-            if is_match:
-                print(f"[+] ✓ MATCH FOUND! Password is: {args.text}\n")
-            else:
-                print(f"[-] ✗ No match. Hashes do not match.\n")
-
-            return is_match
-
-        return True
-
-    except UnsupportedAlgorithmError as e:
-        print(f"[-] Error: {e}")
-        return False
-    except Exception as e:
-        print(f"[-] Unexpected error: {e}")
-        return False
-
-
-def handle_dict_mode(args):
-    """Handle dictionary attack."""
-    print("\n" + "=" * 60)
-    print("Hash Cracker Suite - Dictionary Attack (Phase 3)")
-    print("=" * 60 + "\n")
-
-    # Validate required arguments
-    if not args.hash:
-        print("[!] Error: --hash is required for dictionary mode")
-        return False
-
-    if not args.wordlist:
-        print("[!] Error: --wordlist is required for dictionary mode")
-        return False
-
-    # Validate wordlist
-    is_valid, validation_msg = validate_wordlist(args.wordlist)
-    if not is_valid:
-        print(f"[-] {validation_msg}")
-        return False
-
-    print(f"[+] Target Hash: {args.hash}")
-    print(f"[+] Algorithm: {args.algorithm.upper()}")
-    print(f"[+] Wordlist: {args.wordlist}")
-    print(f"[+] {validation_msg}")
-    print()
-
-    try:
-        # Run dictionary attack
-        found, password, attempts = run_dictionary_attack(
-            target_hash=args.hash,
-            wordlist_path=args.wordlist,
-            algorithm=args.algorithm,
-            show_progress=True,
-        )
-
-        # Display results
-        print("=" * 60)
-        if found:
-            print(f"[+] ✓ MATCH FOUND: {password}")
-            print(f"[+] Attempts: {attempts}")
-            print("=" * 60 + "\n")
-            return True
-        else:
-            print(f"[-] ✗ No match found")
-            print(f"[-] Attempts: {attempts}")
-            print("=" * 60 + "\n")
-            return False
-
-    except DictionaryAttackError as e:
-        print(f"[-] Error: {e}")
-        return False
-    except Exception as e:
-        print(f"[-] Unexpected error: {e}")
-        return False
-
-
-def handle_brute_mode(args):
-    """Handle brute-force attack."""
-    print("\n" + "=" * 60)
-    print("Hash Cracker Suite - Brute Force Attack (Phase 4)")
-    print("=" * 60 + "\n")
-
-    if not args.hash:
-        print("[!] Error: --hash is required for brute mode")
-        return False
-
-    if args.max_length < 1:
-        print("[!] Error: --max-length must be >= 1")
-        return False
-
-    if not args.charset:
-        print("[!] Error: --charset must not be empty")
-        return False
-
-    print(f"[+] Target Hash: {args.hash}")
-    print(f"[+] Algorithm: {args.algorithm.upper()}")
-    print(f"[+] Charset: {args.charset}")
-    print(f"[+] Max Length: {args.max_length}")
-    print("\n[*] Trying combinations...\n")
-
-    try:
-        found, password, attempts = run_brute_force(
-            target_hash=args.hash,
-            algorithm=args.algorithm,
-            charset=args.charset,
-            max_length=args.max_length,
-            show_progress=True,
-            progress_interval=1000,
-        )
-
-        print("=" * 60)
-        if found:
-            print(f"[+] ✓ MATCH FOUND: {password}")
-            print(f"[+] Attempts: {attempts}")
-            print("=" * 60 + "\n")
-            return True
-
-        print("[-] ✗ No match found")
-        print(f"[-] Attempts exhausted: {attempts}")
-        print("=" * 60 + "\n")
-        return False
-
-    except BruteForceError as e:
-        print(f"[-] Error: {e}")
-        return False
-    except Exception as e:
-        print(f"[-] Unexpected error: {e}")
-        return False
-
-
-def handle_rainbow_mode(args):
-    """Handle rainbow table lookup (Phase 4)."""
-    print("\n[!] Rainbow table lookup coming in Phase 4...\n")
-    return False
-
-
-def main():
+def main() -> None:
     """Main entry point."""
     parser = create_parser()
     args = parser.parse_args()
 
     try:
-        # Route to appropriate handler
         if args.mode == "hash":
             success = handle_hash_mode(args)
         elif args.mode == "dict":
-            if not args.hash:
-                parser.error("--hash is required for dictionary attack mode")
-            if not args.wordlist:
-                parser.error("--wordlist is required for dictionary attack mode")
+            if args.progress_interval < 1:
+                parser.error("--progress-interval must be >= 1")
+            if not args.i_understand_legal_use:
+                parser.error(
+                    "You must acknowledge authorized use to run attack modes. "
+                    "Use --i-understand-legal-use"
+                )
             success = handle_dict_mode(args)
         elif args.mode == "brute":
-            if not args.hash:
-                parser.error("--hash is required for brute-force mode")
-            if args.max_length is None:
-                parser.error("--max-length is required for brute-force mode")
+            if args.progress_interval < 1:
+                parser.error("--progress-interval must be >= 1")
+            if not args.i_understand_legal_use:
+                parser.error(
+                    "You must acknowledge authorized use to run attack modes. "
+                    "Use --i-understand-legal-use"
+                )
             success = handle_brute_mode(args)
-        elif args.mode == "rainbow":
-            if not args.hash:
-                parser.error("--hash is required for rainbow table mode")
-            success = handle_rainbow_mode(args)
+        elif args.mode == "check":
+            success = handle_check_mode(args)
         else:
             parser.error(f"Unknown mode: {args.mode}")
 
-        # Exit with appropriate code
         sys.exit(0 if success else 1)
 
     except KeyboardInterrupt:
-        print("\n\n[!] Operation cancelled by user.")
-        sys.exit(1)
-    except Exception as e:
-        print(f"\n[-] Fatal error: {e}")
+        print("\n[!] Operation cancelled by user.")
         sys.exit(1)
 
 

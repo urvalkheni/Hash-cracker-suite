@@ -10,7 +10,11 @@ Educational purpose: Demonstrates why short/weak passwords are vulnerable.
 from itertools import product
 from typing import Optional, Tuple
 
-from .hash_utils import generate_hash, UnsupportedAlgorithmError
+from .hash_utils import (
+    generate_hash,
+    validate_hash_input,
+    UnsupportedAlgorithmError,
+)
 
 
 class BruteForceError(Exception):
@@ -24,7 +28,7 @@ def run_brute_force(
     algorithm: str = "sha256",
     charset: str = "abcdefghijklmnopqrstuvwxyz",
     max_length: int = 4,
-    show_progress: bool = True,
+    show_progress: bool = False,
     progress_interval: int = 1000,
 ) -> Tuple[bool, Optional[str], int]:
     """
@@ -60,9 +64,10 @@ def run_brute_force(
         raise BruteForceError("progress_interval must be an integer >= 1")
 
     attempts = 0
-    target_hash_lower = target_hash.lower()
 
     try:
+        target_hash_lower = validate_hash_input(target_hash, algorithm)
+
         for length in range(1, max_length + 1):
             for chars in product(charset, repeat=length):
                 candidate = "".join(chars)

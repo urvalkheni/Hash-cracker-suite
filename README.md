@@ -1,102 +1,130 @@
 # 🔑 Hash Cracker Suite
+> 🔐 A modular password security lab demonstrating hashing, cracking techniques, and strength analysis.
 
-A comprehensive password security and hash cracking toolkit designed to demonstrate real-world attack techniques such as dictionary attacks, brute-force attacks, and rainbow table lookups.
+## Overview
+Hash Cracker Suite is a beginner-friendly, command-line educational lab for understanding password security.
 
-## 📌 Overview
+It demonstrates both offensive and defensive concepts:
+- how hashes are generated and verified
+- how weak passwords are cracked with dictionary and brute-force methods
+- how password strength can be analyzed before use
 
-This project helps understand how weak passwords are exploited and how modern systems defend against such attacks.
+## Features
+- Hash generation and verification (MD5, SHA-1, SHA-256)
+- Dictionary attack using a wordlist
+- Brute-force attack using configurable charset and max length
+- Password strength analysis with simple scoring and explanation
 
-## 🚀 Features (Planned)
+## Learning Purpose
+This project is an educational password security lab.
 
-- 🔓 Crack MD5, SHA-1, SHA-256 hashes
-- 📚 Dictionary attack using wordlists
-- 💪 Brute-force password generation
-- 🌈 Rainbow table simulation (precomputed hashes)
-- 🔐 Password strength checker
-- ⚡ CLI-based fast execution
+It is designed to help learners:
+- understand how hashing works
+- see why weak passwords are risky
+- compare attack techniques and defensive checks
+- practice secure password thinking in a safe environment
 
-## 🛠 Tech Stack
-
-- **Language:** Python 3.8+
-- **Libraries:** hashlib, itertools, argparse (standard library)
-
-## 📂 Project Structure
-
-```
+## Project Structure
+```text
 hash-cracker-suite/
 ├── src/
-│   ├── core/              # Core attack modules (Phase 2)
-│   └── cracker.py         # Main CLI entry point
+│   ├── cracker.py
+│   ├── cli/
+│   │   ├── hash_mode.py
+│   │   ├── dict_mode.py
+│   │   ├── brute_mode.py
+│   │   └── check_mode.py
+│   └── core/
+│       ├── hash_utils.py
+│       ├── dictionary_attack.py
+│       ├── brute_force.py
+│       └── password_strength.py
 ├── data/
-│   ├── wordlists/         # Wordlist data files
-│   └── rainbow_tables/    # Precomputed hash tables
-├── tests/                 # Test suite
-├── requirements.txt       # Python dependencies
-└── README.md             # This file
+│   └── wordlists/
+│       └── common.txt
+├── tests/
+│   ├── test_cli.py
+│   ├── test_hash_utils.py
+│   ├── test_dictionary_attack.py
+│   ├── test_brute_force.py
+│   └── test_password_strength.py
+├── requirements.txt
+├── requirements-dev.txt
+├── pyproject.toml
+└── README.md
 ```
 
-## 📦 Installation
+## CI Status
+CI workflow is configured in `.github/workflows/ci.yml`.
 
+## Installation
 ```bash
-# Clone repository
 git clone https://github.com/urvalkheni/Hash-cracker-suite.git
 cd Hash-cracker-suite
 
-# No external dependencies required (using Python standard library)
-# Optional: Create virtual environment
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+pip install -e .
+hash-cracker --help
 ```
 
-## 🚀 Quick Start
-
+## Development Setup
 ```bash
-# Show help
-python src/cracker.py --help
+git clone https://github.com/urvalkheni/Hash-cracker-suite.git
+cd Hash-cracker-suite
 
-# Dictionary attack (coming in Phase 2)
-python src/cracker.py --mode dict --hash <hash> --wordlist data/wordlists/sample.txt
-
-# Brute force (coming in Phase 2)
-python src/cracker.py --mode brute --hash <hash> --length 4
-
-# Rainbow table (coming in Phase 2)
-python src/cracker.py --mode rainbow --hash <hash>
+pip install -r requirements-dev.txt
+pytest
 ```
 
-## 📊 Development Phases
+## Usage Examples
 
-### Phase 1 ✅ (Current)
-- [x] Project structure
-- [x] CLI argument parsing
-- [x] Base setup
+All examples below use the installed CLI entrypoint `hash-cracker`.
 
-### Phase 2 (Next)
-- [ ] Hash utility functions
-- [ ] Dictionary attack implementation
-- [ ] Brute-force implementation
-- [ ] Rainbow table simulation
+### 1) Hash generation and verification (`--mode hash`)
+```bash
+# Generate MD5 hash
+hash-cracker hash --text password --algorithm md5
 
-### Phase 3+
-- [ ] Performance optimizations
-- [ ] Additional hash algorithms
-- [ ] GUI dashboard
-- [ ] GPU acceleration
+# Verify text against hash
+hash-cracker hash --text password --hash 5f4dcc3b5aa765d61d8327deb882cf99 --algorithm md5
+```
 
-## ⚠️ Disclaimer
+### 2) Dictionary attack (`--mode dict`)
+```bash
+hash-cracker dict --hash 5f4dcc3b5aa765d61d8327deb882cf99 --wordlist data/wordlists/common.txt --algorithm md5 --i-understand-legal-use
 
-This tool is for **educational and ethical use only**.
+# Verbose progress every 500 attempts
+hash-cracker dict --hash 5f4dcc3b5aa765d61d8327deb882cf99 --wordlist data/wordlists/common.txt --algorithm md5 --i-understand-legal-use --verbose --progress-interval 500
+```
 
-Do NOT use it on systems without proper authorization.
+Use your own wordlist or place one in `data/wordlists/`.
 
-## 🤝 Contributing
+### 3) Brute-force attack (`--mode brute`)
+```bash
+# Uses default charset (lowercase a-z) and max length 3
+hash-cracker brute --hash 900150983cd24fb0d6963f7d28e17f72 --algorithm md5 --max-length 3 --i-understand-legal-use --force
 
-Contributions welcome! Focus areas:
-- Implement core attack modules
-- Add new hash algorithm support
-- Performance optimizations
-- Documentation
+# Custom charset example
+hash-cracker brute --hash 187ef4436122d1cc2f40dc2b92f0eba0 --algorithm md5 --max-length 3 --charset abc123 --i-understand-legal-use --force
 
-## 📝 License
+# Verbose progress every 100 attempts
+hash-cracker brute --hash 900150983cd24fb0d6963f7d28e17f72 --algorithm md5 --max-length 3 --i-understand-legal-use --force --verbose --progress-interval 100
+```
 
-See LICENSE file for details.
+### 4) Password strength analysis (`--mode check`)
+```bash
+hash-cracker check --text password123
+hash-cracker check --text Aq7!zP9@Lm#2
+```
+
+Note: This password strength checker is a simplified educational estimator, not a full real-world password audit tool.
+
+## Demo
+```bash
+# Crack MD5 hash using dictionary
+hash-cracker dict --hash 5f4dcc3b5aa765d61d8327deb882cf99 --wordlist data/wordlists/common.txt --algorithm md5 --i-understand-legal-use
+```
+
+## Safety Disclaimer
+This project is for educational and authorized security testing only.
+
+Do not run these techniques against systems, accounts, or data you do not own or have explicit permission to test.

@@ -9,9 +9,12 @@ Educational purpose: Understanding dictionary attack vulnerabilities.
 
 from pathlib import Path
 from typing import Optional, Tuple
-import sys
 
-from .hash_utils import generate_hash, UnsupportedAlgorithmError
+from .hash_utils import (
+    generate_hash,
+    validate_hash_input,
+    UnsupportedAlgorithmError,
+)
 
 
 class DictionaryAttackError(Exception):
@@ -24,7 +27,8 @@ def run_dictionary_attack(
     target_hash: str,
     wordlist_path: Path,
     algorithm: str = "sha256",
-    show_progress: bool = True,
+    show_progress: bool = False,
+    progress_interval: int = 1000,
 ) -> Tuple[bool, Optional[str], int]:
     """
     Perform dictionary attack on target hash using wordlist.
@@ -58,6 +62,9 @@ def run_dictionary_attack(
     if not isinstance(target_hash, str) or not target_hash:
         raise DictionaryAttackError("target_hash must be a non-empty string")
 
+    if not isinstance(progress_interval, int) or progress_interval < 1:
+        raise DictionaryAttackError("progress_interval must be an integer >= 1")
+
     # Validate wordlist path
     if not isinstance(wordlist_path, Path):
         wordlist_path = Path(wordlist_path)
@@ -69,21 +76,29 @@ def run_dictionary_attack(
         raise DictionaryAttackError(f"Not a file: {wordlist_path}")
 
     attempts = 0
-    target_hash_lower = target_hash.lower()
+    skipped_decode_lines = 0
 
     try:
+        target_hash_lower = validate_hash_input(target_hash, algorithm)
+
         # Open and read wordlist
-        with open(wordlist_path, "r", encoding="utf-8", errors="ignore") as f:
-            for line in f:
+        with open(wordlist_path, "rb") as f:
+            for raw_line in f:
+                try:
+                    line = raw_line.decode("utf-8").strip()
+                except UnicodeDecodeError:
+                    skipped_decode_lines += 1
+                    continue
+
                 # Strip whitespace and skip empty lines
-                word = line.strip()
+                word = line
                 if not word:
                     continue
 
                 attempts += 1
 
                 # Show progress
-                if show_progress:
+                if show_progress and attempts % progress_interval == 0:
                     print(f"[*] Trying: {word}")
 
                 try:
@@ -94,10 +109,15 @@ def run_dictionary_attack(
                     if word_hash.lower() == target_hash_lower:
                         if show_progress:
                             print()  # Blank line for clarity
+                        if skipped_decode_lines:
+                            print(f"[!] Warning: Skipped {skipped_decode_lines} non-UTF-8 lines")
                         return (True, word, attempts)
 
                 except UnsupportedAlgorithmError as e:
                     raise DictionaryAttackError(f"Invalid algorithm: {e}")
+
+        if skipped_decode_lines:
+            print(f"[!] Warning: Skipped {skipped_decode_lines} non-UTF-8 lines")
 
         # No match found
         return (False, None, attempts)
@@ -135,11 +155,27 @@ def validate_wordlist(wordlist_path: Path) -> Tuple[bool, str]:
 
     # Count lines
     try:
-        with open(wordlist_path, "r", encoding="utf-8", errors="ignore") as f:
-            word_count = sum(1 for line in f if line.strip())
+        skipped_decode_lines = 0
+        word_count = 0
+        with open(wordlist_path, "rb") as f:
+            for raw_line in f:
+                try:
+                    line = raw_line.decode("utf-8").strip()
+                except UnicodeDecodeError:
+                    skipped_decode_lines += 1
+                    continue
+
+                if line:
+                    word_count += 1
 
         if word_count == 0:
             return (False, "Wordlist is empty")
+
+        if skipped_decode_lines:
+            return (
+                True,
+                f"Valid wordlist with {word_count} words ({skipped_decode_lines} lines skipped)",
+            )
 
         return (True, f"Valid wordlist with {word_count} words")
 
