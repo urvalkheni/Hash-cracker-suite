@@ -18,11 +18,55 @@ SUPPORTED_ALGORITHMS = {
     "sha256": hashlib.sha256,
 }
 
+HASH_LENGTHS = {
+    "md5": 32,
+    "sha1": 40,
+    "sha256": 64,
+}
+
 
 class UnsupportedAlgorithmError(Exception):
     """Raised when an unsupported hash algorithm is requested."""
 
     pass
+
+
+def _validate_algorithm(algorithm: str) -> str:
+    """Validate and normalize algorithm name."""
+    normalized = algorithm.lower()
+    if normalized not in SUPPORTED_ALGORITHMS:
+        raise UnsupportedAlgorithmError(
+            f"Unsupported algorithm: {algorithm}. "
+            f"Supported algorithms: {', '.join(SUPPORTED_ALGORITHMS.keys())}"
+        )
+    return normalized
+
+
+def validate_hash_input(target_hash: str, algorithm: str) -> str:
+    """
+    Validate hash format for a specific algorithm.
+
+    Rules:
+    - hex characters only
+    - exact length per algorithm
+    """
+    if not isinstance(target_hash, str) or not target_hash:
+        raise ValueError("target_hash must be a non-empty string")
+
+    normalized_algorithm = _validate_algorithm(algorithm)
+    normalized_hash = target_hash.lower().strip()
+
+    if not all(char in "0123456789abcdef" for char in normalized_hash):
+        raise ValueError("target_hash must contain only hexadecimal characters")
+
+    expected_length = HASH_LENGTHS[normalized_algorithm]
+    if len(normalized_hash) != expected_length:
+        raise ValueError(
+            f"target_hash length invalid for {normalized_algorithm}. "
+            f"Expected {expected_length} characters"
+        )
+
+    return normalized_hash
 
 
 def generate_hash(
@@ -51,12 +95,7 @@ def generate_hash(
         '5f4dcc3b5aa765d61d8327deb882cf99'
     """
     # Validate algorithm
-    algorithm = algorithm.lower()
-    if algorithm not in SUPPORTED_ALGORITHMS:
-        raise UnsupportedAlgorithmError(
-            f"Unsupported algorithm: {algorithm}. "
-            f"Supported algorithms: {', '.join(SUPPORTED_ALGORITHMS.keys())}"
-        )
+    algorithm = _validate_algorithm(algorithm)
 
     # Validate text input
     if not isinstance(text, str):
@@ -100,17 +139,13 @@ def verify_hash(
     if not isinstance(target_hash, str):
         raise TypeError(f"target_hash must be string, got {type(target_hash).__name__}")
 
-    # Validate algorithm
-    algorithm = algorithm.lower()
-    if algorithm not in SUPPORTED_ALGORITHMS:
-        raise UnsupportedAlgorithmError(
-            f"Unsupported algorithm: {algorithm}. "
-            f"Supported algorithms: {', '.join(SUPPORTED_ALGORITHMS.keys())}"
-        )
+    # Validate algorithm and hash format
+    algorithm = _validate_algorithm(algorithm)
+    normalized_target = validate_hash_input(target_hash, algorithm)
 
     # Generate hash and compare
     generated_hash = generate_hash(text, algorithm)
-    return generated_hash.lower() == target_hash.lower()
+    return generated_hash.lower() == normalized_target
 
 
 def get_algorithm_info(algorithm: str = None) -> dict:
@@ -140,12 +175,7 @@ def get_algorithm_info(algorithm: str = None) -> dict:
         return info
     else:
         # Return info for specific algorithm
-        algorithm = algorithm.lower()
-        if algorithm not in SUPPORTED_ALGORITHMS:
-            raise UnsupportedAlgorithmError(
-                f"Unsupported algorithm: {algorithm}. "
-                f"Supported algorithms: {', '.join(SUPPORTED_ALGORITHMS.keys())}"
-            )
+        algorithm = _validate_algorithm(algorithm)
 
         hash_obj = SUPPORTED_ALGORITHMS[algorithm]()
         return {
