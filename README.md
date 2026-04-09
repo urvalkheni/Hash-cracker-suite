@@ -1,130 +1,185 @@
-# 🔑 Hash Cracker Suite
-> 🔐 A modular password security lab demonstrating hashing, cracking techniques, and strength analysis.
+# Hash Cracker Suite
+Command-line password security lab for hashing workflows, controlled cracking demonstrations, and fast strength estimation.
 
-## Overview
-Hash Cracker Suite is a beginner-friendly, command-line educational lab for understanding password security.
+## 🚀 Overview
+Hash Cracker Suite is a modular Python CLI that demonstrates core password security workflows end to end:
 
-It demonstrates both offensive and defensive concepts:
-- how hashes are generated and verified
-- how weak passwords are cracked with dictionary and brute-force methods
-- how password strength can be analyzed before use
+- create and verify hashes
+- attempt recovery using dictionary and brute-force strategies
+- evaluate password quality with a rule-based strength score
 
-## Features
-- Hash generation and verification (MD5, SHA-1, SHA-256)
-- Dictionary attack using a wordlist
-- Brute-force attack using configurable charset and max length
-- Password strength analysis with simple scoring and explanation
+Why it exists:
 
-## Learning Purpose
-This project is an educational password security lab.
+- to make password security concepts practical and testable from the terminal
+- to show how weak credentials are exposed by basic attack techniques
+- to pair offensive testing concepts with defensive password quality checks
 
-It is designed to help learners:
-- understand how hashing works
-- see why weak passwords are risky
-- compare attack techniques and defensive checks
-- practice secure password thinking in a safe environment
+Real-world relevance:
 
-## Project Structure
+- cybersecurity training and awareness labs
+- secure software education for developers
+- repeatable local experiments for understanding hash-based credential risk
+
+## 🔥 Features
+- Multi-algorithm hash generation and verification: `md5`, `sha1`, `sha256`.
+- Hash input validation with strict hexadecimal and algorithm-specific length checks.
+- Dictionary attack mode with:
+	- wordlist validation
+	- UTF-8 line processing
+	- non-UTF-8 line skipping with warning output
+	- optional progress output (`--verbose`, `--progress-interval`)
+- Brute-force mode with:
+	- configurable charset and max length
+	- full combinatorial candidate generation (length `1..N`)
+	- optional progress output (`--verbose`, `--progress-interval`)
+	- search-space estimate and explicit `--force` requirement for large runs
+- Safety gate for attack modes requiring explicit legal-use acknowledgment:
+	- `--i-understand-legal-use`
+- Password strength analyzer with:
+	- rule-based score (`0..5`)
+	- checks for length, mixed case, digits, special characters
+	- common-pattern penalty (`password`, `123456`, `qwerty`, `admin`)
+	- estimated entropy in bits
+- Warning output when using insecure legacy hashes (`md5`, `sha1`).
+- Test suite with `pytest` and automated CI on GitHub Actions.
+
+## 🛠 Tech Stack
+- Language: Python 3.10+
+- CLI: Python `argparse`
+- Cryptography primitives: Python standard-library `hashlib`
+- Candidate generation: Python standard-library `itertools`
+- Packaging: `setuptools`, PEP 517/518 (`pyproject.toml`)
+- Testing: `pytest`
+- CI: GitHub Actions
+
+## 📂 Project Structure
 ```text
-hash-cracker-suite/
-├── src/
-│   ├── cracker.py
-│   ├── cli/
-│   │   ├── hash_mode.py
-│   │   ├── dict_mode.py
-│   │   ├── brute_mode.py
-│   │   └── check_mode.py
-│   └── core/
-│       ├── hash_utils.py
-│       ├── dictionary_attack.py
-│       ├── brute_force.py
-│       └── password_strength.py
+Hash-cracker-suite/
+├── .github/
+│   └── workflows/
+│       └── ci.yml                  # CI pipeline: install deps, install package, run pytest
 ├── data/
 │   └── wordlists/
-│       └── common.txt
+│       └── common.txt              # Sample dictionary words for attack demonstrations
+├── src/
+│   ├── __init__.py                 # Package metadata
+│   ├── cracker.py                  # Main CLI entrypoint and argument parsing
+│   ├── cli/
+│   │   ├── __init__.py
+│   │   ├── hash_mode.py            # Hash mode output + validation + verify flow
+│   │   ├── dict_mode.py            # Dictionary mode orchestration and reporting
+│   │   ├── brute_mode.py           # Brute-force mode orchestration + safety checks
+│   │   └── check_mode.py           # Password strength mode output
+│   └── core/
+│       ├── __init__.py
+│       ├── hash_utils.py           # Hash generation/verification + format validation
+│       ├── dictionary_attack.py    # Wordlist-driven hash cracking engine
+│       ├── brute_force.py          # Exhaustive candidate generation and matching
+│       └── password_strength.py    # Rule-based strength scoring + entropy estimate
 ├── tests/
-│   ├── test_cli.py
-│   ├── test_hash_utils.py
-│   ├── test_dictionary_attack.py
-│   ├── test_brute_force.py
-│   └── test_password_strength.py
-├── requirements.txt
-├── requirements-dev.txt
-├── pyproject.toml
+│   ├── conftest.py                 # Test import-path setup
+│   ├── test_cli.py                 # End-to-end CLI behavior tests
+│   ├── test_hash_utils.py          # Hash module unit tests
+│   ├── test_dictionary_attack.py   # Dictionary attack tests
+│   ├── test_brute_force.py         # Brute-force tests
+│   └── test_password_strength.py   # Password analysis tests
+├── pyproject.toml                  # Project metadata, script entrypoint, build config
+├── requirements.txt                # Runtime dependencies (standard library only)
+├── requirements-dev.txt            # Dev dependencies (pytest)
 └── README.md
 ```
 
-## CI Status
-CI workflow is configured in `.github/workflows/ci.yml`.
+## ⚙️ Setup & Installation
 
-## Installation
+### 1) Clone
 ```bash
 git clone https://github.com/urvalkheni/Hash-cracker-suite.git
 cd Hash-cracker-suite
+```
 
+### 2) Install (recommended)
+```bash
+python -m pip install --upgrade pip
 pip install -e .
+```
+
+### 3) Run CLI
+```bash
 hash-cracker --help
 ```
 
-## Development Setup
-```bash
-git clone https://github.com/urvalkheni/Hash-cracker-suite.git
-cd Hash-cracker-suite
+If script entrypoints are unavailable in your shell, run via module:
 
-pip install -r requirements-dev.txt
-pytest
+```bash
+python -m src.cracker --help
 ```
 
-## Usage Examples
+## ▶️ Usage
 
-All examples below use the installed CLI entrypoint `hash-cracker`.
-
-### 1) Hash generation and verification (`--mode hash`)
+### Hash generation and verification
 ```bash
-# Generate MD5 hash
 hash-cracker hash --text password --algorithm md5
-
-# Verify text against hash
 hash-cracker hash --text password --hash 5f4dcc3b5aa765d61d8327deb882cf99 --algorithm md5
 ```
 
-### 2) Dictionary attack (`--mode dict`)
+### Dictionary attack
 ```bash
-hash-cracker dict --hash 5f4dcc3b5aa765d61d8327deb882cf99 --wordlist data/wordlists/common.txt --algorithm md5 --i-understand-legal-use
-
-# Verbose progress every 500 attempts
-hash-cracker dict --hash 5f4dcc3b5aa765d61d8327deb882cf99 --wordlist data/wordlists/common.txt --algorithm md5 --i-understand-legal-use --verbose --progress-interval 500
+hash-cracker dict \
+	--hash 5f4dcc3b5aa765d61d8327deb882cf99 \
+	--wordlist data/wordlists/common.txt \
+	--algorithm md5 \
+	--i-understand-legal-use
 ```
 
-Use your own wordlist or place one in `data/wordlists/`.
+Verbose progress example:
 
-### 3) Brute-force attack (`--mode brute`)
 ```bash
-# Uses default charset (lowercase a-z) and max length 3
-hash-cracker brute --hash 900150983cd24fb0d6963f7d28e17f72 --algorithm md5 --max-length 3 --i-understand-legal-use --force
-
-# Custom charset example
-hash-cracker brute --hash 187ef4436122d1cc2f40dc2b92f0eba0 --algorithm md5 --max-length 3 --charset abc123 --i-understand-legal-use --force
-
-# Verbose progress every 100 attempts
-hash-cracker brute --hash 900150983cd24fb0d6963f7d28e17f72 --algorithm md5 --max-length 3 --i-understand-legal-use --force --verbose --progress-interval 100
+hash-cracker dict \
+	--hash 5f4dcc3b5aa765d61d8327deb882cf99 \
+	--wordlist data/wordlists/common.txt \
+	--algorithm md5 \
+	--i-understand-legal-use \
+	--verbose \
+	--progress-interval 500
 ```
 
-### 4) Password strength analysis (`--mode check`)
+### Brute-force attack
+```bash
+hash-cracker brute \
+	--hash 900150983cd24fb0d6963f7d28e17f72 \
+	--algorithm md5 \
+	--max-length 3 \
+	--i-understand-legal-use \
+	--force
+```
+
+Custom charset example:
+
+```bash
+hash-cracker brute \
+	--hash 187ef4436122d1cc2f40dc2b92f0eba0 \
+	--algorithm md5 \
+	--max-length 3 \
+	--charset abc123 \
+	--i-understand-legal-use \
+	--force
+```
+
+### Password strength check
 ```bash
 hash-cracker check --text password123
 hash-cracker check --text Aq7!zP9@Lm#2
 ```
 
-Note: This password strength checker is a simplified educational estimator, not a full real-world password audit tool.
-
-## Demo
+## 🧪 Development & Testing
 ```bash
-# Crack MD5 hash using dictionary
-hash-cracker dict --hash 5f4dcc3b5aa765d61d8327deb882cf99 --wordlist data/wordlists/common.txt --algorithm md5 --i-understand-legal-use
+pip install -r requirements-dev.txt
+pytest
 ```
 
-## Safety Disclaimer
-This project is for educational and authorized security testing only.
+CI runs test automation from [.github/workflows/ci.yml](.github/workflows/ci.yml).
 
-Do not run these techniques against systems, accounts, or data you do not own or have explicit permission to test.
+## ⚠️ Responsible Use
+This project is intended for education and authorized security testing only.
+
+Use attack modes only on systems and data you own or are explicitly permitted to assess.
