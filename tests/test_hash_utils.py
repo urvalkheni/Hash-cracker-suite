@@ -1,5 +1,4 @@
 import pytest
-
 from src.core.hash_utils import (
     UnsupportedAlgorithmError,
     generate_hash,

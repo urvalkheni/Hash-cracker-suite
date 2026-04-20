@@ -8,28 +8,25 @@ Educational purpose: Understanding dictionary attack vulnerabilities.
 """
 
 from pathlib import Path
-from typing import Optional, Tuple
 
 from .hash_utils import (
+    UnsupportedAlgorithmError,
     generate_hash,
     validate_hash_input,
-    UnsupportedAlgorithmError,
 )
 
 
 class DictionaryAttackError(Exception):
     """Raised when dictionary attack encounters an error."""
 
-    pass
-
 
 def run_dictionary_attack(
     target_hash: str,
-    wordlist_path: Path,
+    wordlist_path: Path | str,
     algorithm: str = "sha256",
     show_progress: bool = False,
     progress_interval: int = 1000,
-) -> Tuple[bool, Optional[str], int]:
+) -> tuple[bool, str | None, int]:
     """
     Perform dictionary attack on target hash using wordlist.
 
@@ -82,7 +79,7 @@ def run_dictionary_attack(
         target_hash_lower = validate_hash_input(target_hash, algorithm)
 
         # Open and read wordlist
-        with open(wordlist_path, "rb") as f:
+        with wordlist_path.open("rb") as f:
             for raw_line in f:
                 try:
                     line = raw_line.decode("utf-8").strip()
@@ -114,7 +111,7 @@ def run_dictionary_attack(
                         return (True, word, attempts)
 
                 except UnsupportedAlgorithmError as e:
-                    raise DictionaryAttackError(f"Invalid algorithm: {e}")
+                    raise DictionaryAttackError(f"Invalid algorithm: {e}") from e
 
         if skipped_decode_lines:
             print(f"[!] Warning: Skipped {skipped_decode_lines} non-UTF-8 lines")
@@ -125,10 +122,10 @@ def run_dictionary_attack(
     except DictionaryAttackError:
         raise
     except Exception as e:
-        raise DictionaryAttackError(f"Error during dictionary attack: {e}")
+        raise DictionaryAttackError(f"Error during dictionary attack: {e}") from e
 
 
-def validate_wordlist(wordlist_path: Path) -> Tuple[bool, str]:
+def validate_wordlist(wordlist_path: Path | str) -> tuple[bool, str]:
     """
     Validate wordlist file and return useful information.
 
@@ -157,7 +154,7 @@ def validate_wordlist(wordlist_path: Path) -> Tuple[bool, str]:
     try:
         skipped_decode_lines = 0
         word_count = 0
-        with open(wordlist_path, "rb") as f:
+        with wordlist_path.open("rb") as f:
             for raw_line in f:
                 try:
                     line = raw_line.decode("utf-8").strip()

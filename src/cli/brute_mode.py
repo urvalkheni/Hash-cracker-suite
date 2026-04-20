@@ -1,10 +1,9 @@
 """Brute-force mode handler."""
 
-import math
+from argparse import Namespace
 
+from src.core.brute_force import BruteForceError, run_brute_force
 from src.core.hash_utils import validate_hash_input
-from src.core.brute_force import run_brute_force, BruteForceError
-
 
 _SIGNIFICANT_COMBINATIONS = 100000
 
@@ -16,7 +15,7 @@ def _estimate_combinations(charset_size: int, max_length: int) -> int:
     return int((charset_size * (pow(charset_size, max_length) - 1)) / (charset_size - 1))
 
 
-def handle_brute_mode(args) -> bool:
+def handle_brute_mode(args: Namespace) -> bool:
     """Handle brute-force attack."""
     print("\n" + "=" * 60)
     print("Hash Cracker Suite - Brute Force Attack")
@@ -42,7 +41,8 @@ def handle_brute_mode(args) -> bool:
 
     if args.algorithm in ("md5", "sha1"):
         print(
-            "[!] WARNING: MD5/SHA1 are cryptographically broken and should not be used in real systems."
+            "[!] WARNING: MD5/SHA1 are cryptographically broken "
+            "and should not be used in real systems."
         )
 
     estimated = _estimate_combinations(len(args.charset), args.max_length)

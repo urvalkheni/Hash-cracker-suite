@@ -1,5 +1,4 @@
 import pytest
-
 from src.core.brute_force import BruteForceError, run_brute_force
 
 

@@ -8,19 +8,16 @@ Educational purpose: Demonstrates why short/weak passwords are vulnerable.
 """
 
 from itertools import product
-from typing import Optional, Tuple
 
 from .hash_utils import (
+    UnsupportedAlgorithmError,
     generate_hash,
     validate_hash_input,
-    UnsupportedAlgorithmError,
 )
 
 
 class BruteForceError(Exception):
     """Raised when brute-force attack encounters an error."""
-
-    pass
 
 
 def run_brute_force(
@@ -30,7 +27,7 @@ def run_brute_force(
     max_length: int = 4,
     show_progress: bool = False,
     progress_interval: int = 1000,
-) -> Tuple[bool, Optional[str], int]:
+) -> tuple[bool, str | None, int]:
     """
     Perform brute-force attack on a target hash.
 
@@ -83,8 +80,8 @@ def run_brute_force(
         return (False, None, attempts)
 
     except UnsupportedAlgorithmError as e:
-        raise BruteForceError(str(e))
+        raise BruteForceError(str(e)) from e
     except BruteForceError:
         raise
     except Exception as e:
-        raise BruteForceError(f"Error during brute-force attack: {e}")
+        raise BruteForceError(f"Error during brute-force attack: {e}") from e

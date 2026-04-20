@@ -8,17 +8,31 @@ Educational purpose: Understanding hash functions and verification.
 """
 
 import hashlib
-from typing import Literal
+from collections.abc import Callable
+from typing import Any, Literal, Protocol, TypeAlias, cast
+
+AlgorithmName: TypeAlias = Literal["md5", "sha1", "sha256"]
+AlgorithmInfo = dict[str, dict[str, int | str]]
+
+
+class HashObject(Protocol):
+    """Minimal protocol shared by hashlib hash objects."""
+
+    digest_size: int
+    block_size: int
+
+    def hexdigest(self) -> str:
+        """Return the hexadecimal digest."""
 
 
 # Supported hash algorithms
-SUPPORTED_ALGORITHMS = {
+SUPPORTED_ALGORITHMS: dict[AlgorithmName, Callable[..., Any]] = {
     "md5": hashlib.md5,
     "sha1": hashlib.sha1,
     "sha256": hashlib.sha256,
 }
 
-HASH_LENGTHS = {
+HASH_LENGTHS: dict[AlgorithmName, int] = {
     "md5": 32,
     "sha1": 40,
     "sha256": 64,
@@ -28,10 +42,8 @@ HASH_LENGTHS = {
 class UnsupportedAlgorithmError(Exception):
     """Raised when an unsupported hash algorithm is requested."""
 
-    pass
 
-
-def _validate_algorithm(algorithm: str) -> str:
+def _validate_algorithm(algorithm: str) -> AlgorithmName:
     """Validate and normalize algorithm name."""
     normalized = algorithm.lower()
     if normalized not in SUPPORTED_ALGORITHMS:
@@ -69,9 +81,7 @@ def validate_hash_input(target_hash: str, algorithm: str) -> str:
     return normalized_hash
 
 
-def generate_hash(
-    text: str, algorithm: Literal["md5", "sha1", "sha256"] = "sha256"
-) -> str:
+def generate_hash(text: str, algorithm: str = "sha256") -> str:
     """
     Generate a hash for the given text using the specified algorithm.
 
@@ -90,7 +100,7 @@ def generate_hash(
     Examples:
         >>> generate_hash("password")
         '5e884898da28047151d0e56f8dc62927...'
-        
+
         >>> generate_hash("password", "md5")
         '5f4dcc3b5aa765d61d8327deb882cf99'
     """
@@ -102,12 +112,14 @@ def generate_hash(
         raise TypeError(f"Expected string, got {type(text).__name__}")
 
     # Generate hash
-    hash_obj = SUPPORTED_ALGORITHMS[algorithm](text.encode("utf-8"))
+    hash_obj = cast(HashObject, SUPPORTED_ALGORITHMS[algorithm](text.encode("utf-8")))
     return hash_obj.hexdigest()
 
 
 def verify_hash(
-    text: str, target_hash: str, algorithm: Literal["md5", "sha1", "sha256"] = "sha256"
+    text: str,
+    target_hash: str,
+    algorithm: str = "sha256",
 ) -> bool:
     """
     Verify if the given text matches the target hash.
@@ -128,7 +140,7 @@ def verify_hash(
     Examples:
         >>> verify_hash("password", "5f4dcc3b5aa765d61d8327deb882cf99", "md5")
         True
-        
+
         >>> verify_hash("wrong", "5f4dcc3b5aa765d61d8327deb882cf99", "md5")
         False
     """
@@ -148,7 +160,17 @@ def verify_hash(
     return generated_hash.lower() == normalized_target
 
 
-def get_algorithm_info(algorithm: str = None) -> dict:
+def _get_algorithm_metadata(algorithm: AlgorithmName) -> dict[str, int | str]:
+    """Build metadata for a supported algorithm."""
+    hash_obj = cast(HashObject, SUPPORTED_ALGORITHMS[algorithm]())
+    return {
+        "name": algorithm.upper(),
+        "digest_size": hash_obj.digest_size,
+        "block_size": hash_obj.block_size if hasattr(hash_obj, "block_size") else "N/A",
+    }
+
+
+def get_algorithm_info(algorithm: str | None = None) -> AlgorithmInfo:
     """
     Get information about supported hash algorithms.
 
@@ -163,25 +185,7 @@ def get_algorithm_info(algorithm: str = None) -> dict:
         {'md5': {'name': 'MD5', 'digest_size': 16, ...}}
     """
     if algorithm is None:
-        # Return info for all algorithms
-        info = {}
-        for algo in SUPPORTED_ALGORITHMS.keys():
-            hash_obj = SUPPORTED_ALGORITHMS[algo]()
-            info[algo] = {
-                "name": algo.upper(),
-                "digest_size": hash_obj.digest_size,
-                "block_size": hash_obj.block_size if hasattr(hash_obj, "block_size") else "N/A",
-            }
-        return info
-    else:
-        # Return info for specific algorithm
-        algorithm = _validate_algorithm(algorithm)
+        return {algo: _get_algorithm_metadata(algo) for algo in SUPPORTED_ALGORITHMS}
 
-        hash_obj = SUPPORTED_ALGORITHMS[algorithm]()
-        return {
-            algorithm: {
-                "name": algorithm.upper(),
-                "digest_size": hash_obj.digest_size,
-                "block_size": hash_obj.block_size if hasattr(hash_obj, "block_size") else "N/A",
-            }
-        }
+    normalized_algorithm = _validate_algorithm(algorithm)
+    return {normalized_algorithm: _get_algorithm_metadata(normalized_algorithm)}

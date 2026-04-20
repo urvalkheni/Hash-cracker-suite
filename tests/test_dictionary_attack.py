@@ -1,8 +1,11 @@
 from pathlib import Path
 
 import pytest
-
-from src.core.dictionary_attack import DictionaryAttackError, run_dictionary_attack, validate_wordlist
+from src.core.dictionary_attack import (
+    DictionaryAttackError,
+    run_dictionary_attack,
+    validate_wordlist,
+)
 
 
 def _write_wordlist(path: Path, lines: list[str]) -> None:

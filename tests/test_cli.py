@@ -1,11 +1,12 @@
 import subprocess
 import sys
 from pathlib import Path
+from subprocess import CompletedProcess
 
 ROOT = Path(__file__).resolve().parent.parent
 
 
-def run_cli(*args: str):
+def run_cli(*args: str) -> CompletedProcess[str]:
     return subprocess.run(
         [sys.executable, "-m", "src.cracker", *args],
         cwd=str(ROOT),

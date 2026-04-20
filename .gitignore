@@ -5,6 +5,9 @@ venv/
 .venv/
 .env
 .vscode/
+*.egg-info/
+build/
+dist/
 .pytest_cache/
 .mypy_cache/
-*.egg-info/
+.ruff_cache/
