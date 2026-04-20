@@ -1,5 +1,5 @@
-from pathlib import Path
 import sys
+from pathlib import Path
 
 # Ensure project root is importable during pytest collection
 # across different pytest import modes/environments.

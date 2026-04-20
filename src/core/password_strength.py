@@ -9,9 +9,31 @@ password audit tool.
 """
 
 import math
+from typing import TypedDict
 
 
-def analyze_password_strength(password: str) -> dict:
+class PasswordChecks(TypedDict):
+    """Character composition checks for a password."""
+
+    lowercase: bool
+    uppercase: bool
+    digits: bool
+    special: bool
+
+
+class PasswordAnalysis(TypedDict):
+    """Structured password strength analysis result."""
+
+    password: str
+    length: int
+    score: int
+    strength: str
+    entropy_bits: float
+    checks: PasswordChecks
+    reason: str
+
+
+def analyze_password_strength(password: str) -> PasswordAnalysis:
     """
     Analyze password strength using simple rules.
 
@@ -91,10 +113,7 @@ def analyze_password_strength(password: str) -> dict:
 
     entropy_bits = round(length * math.log2(pool_size), 2) if pool_size > 0 else 0.0
 
-    if not reasons:
-        explanation = "good length and character variety"
-    else:
-        explanation = ", ".join(reasons)
+    explanation = "good length and character variety" if not reasons else ", ".join(reasons)
 
     return {
         "password": password,

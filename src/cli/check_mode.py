@@ -1,9 +1,11 @@
 """Password strength check mode handler."""
 
+from argparse import Namespace
+
 from src.core.password_strength import analyze_password_strength
 
 
-def handle_check_mode(args) -> bool:
+def handle_check_mode(args: Namespace) -> bool:
     """Handle password strength analysis."""
     print("\n" + "=" * 60)
     print("Hash Cracker Suite - Password Strength Analyzer")

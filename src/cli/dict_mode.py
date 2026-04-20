@@ -1,14 +1,16 @@
 """Dictionary mode handler."""
 
-from src.core.hash_utils import validate_hash_input
+from argparse import Namespace
+
 from src.core.dictionary_attack import (
+    DictionaryAttackError,
     run_dictionary_attack,
     validate_wordlist,
-    DictionaryAttackError,
 )
+from src.core.hash_utils import validate_hash_input
 
 
-def handle_dict_mode(args) -> bool:
+def handle_dict_mode(args: Namespace) -> bool:
     """Handle dictionary attack."""
     print("\n" + "=" * 60)
     print("Hash Cracker Suite - Dictionary Attack")
@@ -30,7 +32,8 @@ def handle_dict_mode(args) -> bool:
 
     if args.algorithm in ("md5", "sha1"):
         print(
-            "[!] WARNING: MD5/SHA1 are cryptographically broken and should not be used in real systems."
+            "[!] WARNING: MD5/SHA1 are cryptographically broken "
+            "and should not be used in real systems."
         )
 
     is_valid, validation_msg = validate_wordlist(args.wordlist)

@@ -1,5 +1,4 @@
 import pytest
-
 from src.core.password_strength import analyze_password_strength
 
 

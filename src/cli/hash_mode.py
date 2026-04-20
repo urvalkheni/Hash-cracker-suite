@@ -1,14 +1,16 @@
 """Hash mode handler."""
 
+from argparse import Namespace
+
 from src.core.hash_utils import (
-    generate_hash,
-    verify_hash,
-    validate_hash_input,
     UnsupportedAlgorithmError,
+    generate_hash,
+    validate_hash_input,
+    verify_hash,
 )
 
 
-def handle_hash_mode(args) -> bool:
+def handle_hash_mode(args: Namespace) -> bool:
     """Handle hash generation and verification."""
     print("\n" + "=" * 60)
     print("Hash Cracker Suite - Hash Utility")
@@ -21,7 +23,8 @@ def handle_hash_mode(args) -> bool:
     try:
         if args.algorithm in ("md5", "sha1"):
             print(
-                "[!] WARNING: MD5/SHA1 are cryptographically broken and should not be used in real systems."
+                "[!] WARNING: MD5/SHA1 are cryptographically broken "
+                "and should not be used in real systems."
             )
 
         if args.hash:

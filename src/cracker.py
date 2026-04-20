@@ -6,11 +6,12 @@ Hash Cracker Suite - Main CLI Interface
 import argparse
 import sys
 from pathlib import Path
+from textwrap import dedent
 
-from src.cli.hash_mode import handle_hash_mode
-from src.cli.dict_mode import handle_dict_mode
 from src.cli.brute_mode import handle_brute_mode
 from src.cli.check_mode import handle_check_mode
+from src.cli.dict_mode import handle_dict_mode
+from src.cli.hash_mode import handle_hash_mode
 
 
 def create_parser() -> argparse.ArgumentParser:
@@ -18,23 +19,29 @@ def create_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Hash Cracker Suite - Hashing, cracking, and password analysis",
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""
+        epilog=dedent(
+            """
 Examples:
   Hash generate:
         python -m src.cracker hash --text password --algorithm md5
 
   Hash verify:
-        python -m src.cracker hash --text password --hash 5f4dcc3b5aa765d61d8327deb882cf99 --algorithm md5
+        python -m src.cracker hash --text password
+        --hash 5f4dcc3b5aa765d61d8327deb882cf99 --algorithm md5
 
   Dictionary attack:
-        python -m src.cracker dict --hash 5f4dcc3b5aa765d61d8327deb882cf99 --wordlist data/wordlists/common.txt --algorithm md5 --i-understand-legal-use
+        python -m src.cracker dict --hash 5f4dcc3b5aa765d61d8327deb882cf99
+        --wordlist data/wordlists/common.txt --algorithm md5
+        --i-understand-legal-use
 
   Brute-force attack:
-        python -m src.cracker brute --hash 900150983cd24fb0d6963f7d28e17f72 --algorithm md5 --max-length 3 --i-understand-legal-use --force
+        python -m src.cracker brute --hash 900150983cd24fb0d6963f7d28e17f72
+        --algorithm md5 --max-length 3 --i-understand-legal-use --force
 
   Password check:
         python -m src.cracker check --text password123
-        """,
+        """
+        ),
     )
 
     subparsers = parser.add_subparsers(dest="mode", required=True)
