@@ -194,7 +194,8 @@ def test_hash_mode_handles_expected_and_unexpected_failures(
 
     invalid_hash_args = Namespace(text="password", hash="bad", algorithm="md5")
     assert hash_mode.handle_hash_mode(invalid_hash_args) is False
-    assert "Invalid hash" in capsys.readouterr().out
+    invalid_hash_output = capsys.readouterr().out
+    assert "target_hash length invalid for md5" in invalid_hash_output
 
     verify_args = Namespace(
         text="password",
@@ -432,6 +433,7 @@ def test_core_edge_cases_cover_remaining_branches(
         run_brute_force(
             "5f4dcc3b5aa765d61d8327deb882cf99", algorithm="md5", charset="ab", max_length=1
         )
+    monkeypatch.setattr("src.core.brute_force.validate_hash_input", validate_hash_input)
 
     monkeypatch.setattr(
         "src.core.brute_force.generate_hash",
@@ -469,6 +471,7 @@ def test_core_edge_cases_cover_remaining_branches(
     )
     with pytest.raises(DictionaryAttackError, match="passthrough"):
         run_dictionary_attack("5f4dcc3b5aa765d61d8327deb882cf99", wordlist, algorithm="md5")
+    monkeypatch.setattr("src.core.dictionary_attack.validate_hash_input", validate_hash_input)
 
     from src.core.hash_utils import UnsupportedAlgorithmError
 
