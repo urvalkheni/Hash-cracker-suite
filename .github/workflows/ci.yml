@@ -1,9 +1,11 @@
-name: Quality Gate
+name: CI
 
 on:
   push:
   pull_request:
   workflow_dispatch:
+  schedule:
+    - cron: "17 4 * * 1"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -12,17 +14,32 @@ concurrency:
 permissions:
   contents: read
 
+env:
+  FORCE_COLOR: "1"
+  PIP_DISABLE_PIP_VERSION_CHECK: "1"
+  PIP_NO_PYTHON_VERSION_WARNING: "1"
+
 jobs:
-  quality:
-    name: Lint, Typecheck, Build
+  dependency-review:
+    name: Dependency Review
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Review dependency changes
+        uses: actions/dependency-review-action@v4
+
+  quality:
+    name: Quality Gate
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
     env:
-      MYPY_CACHE_DIR: build/mypy-cache
-      RUFF_NO_CACHE: "true"
       TEMP: ${{ github.workspace }}/build/tmp
       TMP: ${{ github.workspace }}/build/tmp
       TMPDIR: ${{ github.workspace }}/build/tmp
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -35,6 +52,7 @@ jobs:
           cache-dependency-path: |
             pyproject.toml
             requirements-dev.txt
+            requirements.txt
 
       - name: Install dependencies
         run: |
@@ -42,7 +60,7 @@ jobs:
           python -m pip install -r requirements-dev.txt
 
       - name: Prepare workspace temp directories
-        run: python -c "from pathlib import Path; [Path(path).mkdir(parents=True, exist_ok=True) for path in ('build/tmp', 'build/mypy-cache', 'build/ruff-cache', 'build/pytest-temp')]"
+        run: python -c "from pathlib import Path; [Path(path).mkdir(parents=True, exist_ok=True) for path in ('build/tmp', 'build/mypy-cache', 'build/pytest-temp', 'build/ruff-cache')]"
 
       - name: Verify environment
         run: python -m pip check
@@ -56,22 +74,24 @@ jobs:
       - name: Type-check source
         run: python -m mypy
 
-      - name: Build distributables
+      - name: Build distributions
         run: python -m build
+
+      - name: Validate package metadata
+        run: python -m twine check dist/*
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: dist-python312
+          name: dist
           path: dist/
+          if-no-files-found: error
 
-  test:
+  tests:
     name: Test (${{ matrix.os }}, Python ${{ matrix.python-version }})
+    if: github.event_name != 'schedule'
     runs-on: ${{ matrix.os }}
-    env:
-      TEMP: ${{ github.workspace }}/build/tmp
-      TMP: ${{ github.workspace }}/build/tmp
-      TMPDIR: ${{ github.workspace }}/build/tmp
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
@@ -84,7 +104,10 @@ jobs:
             python-version: "3.12"
           - os: windows-latest
             python-version: "3.12"
-
+    env:
+      TEMP: ${{ github.workspace }}/build/tmp
+      TMP: ${{ github.workspace }}/build/tmp
+      TMPDIR: ${{ github.workspace }}/build/tmp
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -97,6 +120,7 @@ jobs:
           cache-dependency-path: |
             pyproject.toml
             requirements-dev.txt
+            requirements.txt
 
       - name: Install dependencies
         run: |
@@ -107,4 +131,101 @@ jobs:
         run: python -c "from pathlib import Path; [Path(path).mkdir(parents=True, exist_ok=True) for path in ('build/tmp', 'build/pytest-temp')]"
 
       - name: Run tests
-        run: python -m pytest
+        run: python -m pytest -q
+
+  coverage:
+    name: Coverage
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      TEMP: ${{ github.workspace }}/build/tmp
+      TMP: ${{ github.workspace }}/build/tmp
+      TMPDIR: ${{ github.workspace }}/build/tmp
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            pyproject.toml
+            requirements-dev.txt
+            requirements.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-dev.txt
+
+      - name: Prepare workspace temp directories
+        run: python -c "from pathlib import Path; [Path(path).mkdir(parents=True, exist_ok=True) for path in ('build/tmp', 'build/pytest-temp')]"
+
+      - name: Run coverage
+        run: python -m pytest --cov=src --cov-report=term-missing --cov-report=xml
+
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-xml
+          path: coverage.xml
+          if-no-files-found: error
+
+  security:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      security-events: write
+    env:
+      TEMP: ${{ github.workspace }}/build/tmp
+      TMP: ${{ github.workspace }}/build/tmp
+      TMPDIR: ${{ github.workspace }}/build/tmp
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            pyproject.toml
+            requirements-dev.txt
+            requirements.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-dev.txt
+
+      - name: Prepare workspace temp directories
+        run: python -c "from pathlib import Path; [Path(path).mkdir(parents=True, exist_ok=True) for path in ('build/tmp',)]"
+
+      - name: Run pip-audit
+        id: audit
+        shell: bash
+        run: |
+          set +e
+          python -m pip_audit --strict -f sarif -o pip-audit.sarif
+          audit_exit=$?
+          echo "exit_code=$audit_exit" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Upload SARIF report
+        if: always() && hashFiles('pip-audit.sarif') != ''
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: pip-audit.sarif
+
+      - name: Fail on vulnerabilities
+        if: steps.audit.outputs.exit_code != '0'
+        shell: bash
+        run: |
+          echo "pip-audit detected vulnerable dependencies."
+          exit 1
