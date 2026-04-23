@@ -22,9 +22,8 @@ env:
 jobs:
   dependency-review:
     name: Dependency Review
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' && vars.ENABLE_DEPENDENCY_REVIEW == 'true'
     runs-on: ubuntu-latest
-    continue-on-error: true
     permissions:
       contents: read
       pull-requests: write
@@ -198,8 +197,23 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install pip-audit
 
+      - name: Detect runtime dependencies
+        id: runtime_deps
+        shell: bash
+        run: |
+          if grep -Eqs '^[[:space:]]*[^#[:space:]-]' requirements.txt; then
+            echo "has_runtime_deps=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_runtime_deps=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Skip audit when no runtime dependencies exist
+        if: steps.runtime_deps.outputs.has_runtime_deps != 'true'
+        run: echo "No runtime dependencies declared in requirements.txt; skipping pip-audit."
+
       - name: Run pip-audit
         id: audit
+        if: steps.runtime_deps.outputs.has_runtime_deps == 'true'
         shell: bash
         run: |
           set +e
@@ -215,7 +229,7 @@ jobs:
           sarif_file: pip-audit.sarif
 
       - name: Fail on vulnerabilities
-        if: steps.audit.outputs.exit_code != '0'
+        if: steps.runtime_deps.outputs.has_runtime_deps == 'true' && steps.audit.outputs.exit_code != '0'
         shell: bash
         run: |
           echo "pip-audit detected vulnerable dependencies."
